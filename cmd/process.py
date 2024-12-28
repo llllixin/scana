@@ -63,7 +63,7 @@ for root, _, fs in os.walk("dataset"):
                 ver_pragmas.add(ver)
 
 # files = set()
-# files.add(("dataset/reentrancy/reentrancy_dao.sol", "dataset/reentrancy", "0.4.19"))
+# files.add(("dataset/reentrancy/reentrancy_dao2.sol", "dataset/reentrancy", "0.4.19"))
 print("Files found:")
 print(files)
 print("Versions found:")
@@ -184,7 +184,9 @@ for file, path, ver in files:
     byte_locs = getCallValueRelatedByteLocs(ast_json, chains, dotfiles, target_dir)
     print(byte_locs)
     sliced_lines = slice_sol(f"{path}/{filename}", byte_locs)
-    print(sliced_lines)
+    # print(sliced_lines)
+    for l in sliced_lines:
+        print(l)
 
     if len(sliced_lines) > 0:
         with open(f"{target_dir}/sliced.txt", "w") as f:
