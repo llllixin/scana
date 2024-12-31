@@ -101,29 +101,55 @@ class Fusion_Model_BLSTM_ATT(nn.Module):
             # dropout=self.dropout,
             bidirectional=True
         )
-        self.sum = util.Sum(dim=1)
-        self.l1 = nn.Linear(self.hidden_size*2, self.hidden_size*2)
-        self.leakyr1 = nn.LeakyReLU()
-        self.dropout1 = nn.Dropout(self.dropout)
-        self.l2 = nn.Linear(self.hidden_size*2, self.hidden_size*2)
-        self.leakyr2 = nn.LeakyReLU()
-        self.dropout2 = nn.Dropout(self.dropout)
-        self.l3 = nn.Linear(self.hidden_size*2, 2)
+        # self.sum = util.Sum(dim=1)
+        # self.l1 = nn.Linear(self.hidden_size*2, self.hidden_size*2)
+        # self.leakyr1 = nn.LeakyReLU()
+        # self.dropout1 = nn.Dropout(self.dropout)
+        # self.l2 = nn.Linear(self.hidden_size*2, self.hidden_size*2)
+        # self.leakyr2 = nn.LeakyReLU()
+        # self.dropout2 = nn.Dropout(self.dropout)
+        # self.l3 = nn.Linear(self.hidden_size*2, 2)
+        self.lstm = nn.LSTM(
+            input_size=self.x_train.shape[2],
+            hidden_size=self.hidden_size,
+            num_layers=1,
+            batch_first=True,
+            # dropout take effect only if num_layers > 1
+            # dropout=self.dropout,
+            bidirectional=True
+        )
+        self.tanh = nn.Tanh()
+        self.attention = nn.Linear(self.hidden_size*2, 1)
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
+        # batch_size, seq_len, num_channel*2
         x, (_, _) = self.lstm(x)
-        x = self.sum(x)
+        # batch_size, seq_len, 1
+        scores = self.attention(x)
+        # batch_size, seq_len, 1
+        scores = self.tanh(scores)
+        # batch_size, seq_len
+        scores = scores.squeeze(-1)
+        # batch_size, seq_len
+        attention_weights = self.softmax(scores)
+        # batch_size, seq_len, 1
+        weights = attention_weights.unsqueeze(-1)
+        # batch_size, num_channel*2
+        ctx = torch.sum(weights * x, dim=1)
+        return ctx
 
-        x = self.l1(x)
-        x = self.leakyr1(x)
-        x = self.dropout1(x)
-
-        x = self.l2(x)
-        x = self.leakyr2(x)
-        x = self.dropout2(x)
-
-        x = self.l3(x)
+        # x = self.sum(x)
+        #
+        # x = self.l1(x)
+        # x = self.leakyr1(x)
+        # x = self.dropout1(x)
+        #
+        # x = self.l2(x)
+        # x = self.leakyr2(x)
+        # x = self.dropout2(x)
+        #
+        # x = self.l3(x)
         return x
 
     def train_model(self):
