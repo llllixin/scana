@@ -123,7 +123,7 @@ class Fusion_Model_BLSTM_ATT(nn.Module):
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
-        # batch_size, seq_len, num_channel*2
+        # batch_size, seq_len, 2*hidden_size
         x, (_, _) = self.lstm(x)
         # batch_size, seq_len, 1
         scores = self.attention(x)
