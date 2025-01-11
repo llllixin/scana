@@ -23,9 +23,10 @@ def dfs(graph, node, chain, ans, visited):
         for neighbor in graph[node]:
             if neighbor in visited:
                 continue;
-            tmp = chain[:]
+            cp_chain = chain[:]
+            cp_vis = visited.copy()
             leaf = False
-            dfs(graph, neighbor, tmp, ans, visited)
+            dfs(graph, neighbor, cp_chain, ans, cp_vis)
 
     if leaf:
         ans.append(chain)
