@@ -1,88 +1,5 @@
-import os
-
-def splitTempName(_str):
-    result = list()
-    flag = False
-    temp = str()
-    for char in _str:
-        if char == "_" and flag == False:
-            flag = True
-            result.append(temp)
-            temp = ""
-        else:
-            temp += char
-    result.append(temp)
-    return result[0][1:], result[1][:-1]  #
-
-# Maybe handle nested arrays as well?
-def findASTNode(ast_json, key, val):
-    queue = [ast_json]
-    result = list()
-    while len(queue) > 0:
-        data = queue.pop()
-        for _key in data:
-            if _key == key and data[_key] == val:
-                result.append(data)
-            elif type(data[_key]) == dict:
-                queue.append(data[_key])
-            elif type(data[_key]) == list:
-                for item in data[_key]:
-                    if type(item) == dict:
-                        queue.append(item)
-    return result
-
-# In .dot files, contract appears like so:
-# ```dot
-# subgraph cluster_66_FibonacciBalance {
-# ```
-CLUSTER_FLAG = "cluster_"
-def toContractFuncCall(chains, dot_files, root_dir):
-    '''
-    :return: a list of lists of 'contract.function', e.g. [['c1.f1', 'c1.f2', 'c3.f3'], ['c2.f1', 'c2.f2']]
-    '''
-    # result is a list of lists of 'contract.function'
-    # e.g. result = [['c1.f1', 'c1.f2', 'c3.f3'], ['c2.f1', 'c2.f2']]
-    result = list()
-    # print(fileName)
-    for dot_fileName in dot_files:
-        dotFile = os.path.join(root_dir, dot_fileName)
-        f = open(dotFile, 'r')
-        num_namepair = dict()
-        for line in f.readlines():
-            if line.find(CLUSTER_FLAG) == -1:
-                # no contract on this line
-                continue
-            try:
-                # TODO
-                subgraph_name = line.split(" ")[1]
-                splits = subgraph_name.split("_")
-                num, contractName = splits[1], splits[2]
-                num_namepair[num] = contractName
-            except:
-                continue
-        # num <-> contractName
-        for chain in chains:
-            curlist = list()
-            for func in chain:
-                try:
-                    num, funcName = func.split("_")[0], func.split("_")[1]
-                    if num not in num_namepair:
-                        continue
-                    curlist.append(num_namepair[num] + "." + funcName)
-                except:
-                    continue
-            # curlist is a list of "contract.function"
-            result.append(curlist)
-    return result
-
-def srcToPos(src):
-    '''
-    :param src: a string of the form "start:end:fileID"
-    :return: a tuple of (start, end) where they're both byte count,
-    indicating the start and end position of part of the source code
-    '''
-    temp = src.split(":")
-    return int(temp[0]), int(temp[0]) + int(temp[1])
+# internal
+from ast_util import findASTNode, srcToPos, getMaliciousChains
 
 # AST JSON example:
 # {
@@ -168,31 +85,6 @@ def haveCallVal(ast_json, contractName, functionName):
                     return True
     return False
 
-
-def getMaliciousChains(ast_json, chains, dot_files, root_dir):
-    '''
-    :return: a list of function call chains that have a call.value
-    '''
-    pathList = []
-    # a list of chains of "contract.function"
-    callPaths = toContractFuncCall(chains, dot_files, root_dir)
-    # print(callPaths)
-    for cp in callPaths:
-        # cp_item takes the form of "contract.function"
-        for cp_item in cp:
-            contractName = cp_item.split('.')[0]
-            funcName = cp_item.split('.')[1]
-            # if the call.value is within the function
-            if haveCallVal(ast_json, contractName, funcName):
-                pathList.append(cp)
-                break
-            else:
-                pass
-    # remove duplicates
-    # path list is all chain that have a function that contains call.value
-    l = list(set([tuple(t) for t in pathList]))
-    result = [list(v) for v in l]
-    return result
 
 def getAddressVariable(ast_json, contractName, functionName):
     identifier_dict = {}
@@ -294,7 +186,14 @@ def getAddressRelatedSC(ast_json, contractName, functionName, var_dict):
             if_pos = []
             for if_item in if_nodes:
                 if_startPos, if_endPos = srcToPos(if_item['src'])
-                if_pos.append((if_startPos, if_endPos))
+                # first block is always present
+                _, be = srcToPos(if_item['children'][1]['src'])
+
+                # else block is sometimes present.
+                bs = if_startPos
+                if len(if_item['children']) > 2:
+                    bs, _ = srcToPos(if_item['children'][2]['src'])
+                if_pos.append((if_startPos, be, bs, if_endPos))
 
             for identifierItem in identifier_ast:
                 if identifierItem['attributes']['referencedDeclaration'] != address_key_:
@@ -302,9 +201,9 @@ def getAddressRelatedSC(ast_json, contractName, functionName, var_dict):
                 iden_startPos, iden_endPos = srcToPos(identifierItem['src'])
                 pos_list.append([iden_startPos])
 
-                for start, end in if_pos:
+                for start, e, s, end in if_pos:
                     if iden_startPos >= start and iden_endPos <= end:
-                        pos_list.append([end])
+                        pos_list.append([start, e, s, end])
 
             for item in addressId_pos:
                 addressID_startPos = item[0]
@@ -349,20 +248,22 @@ def getAddressRelatedSC(ast_json, contractName, functionName, var_dict):
 
     return pos_list
 
-
+if __name__ == '__main__':
+    pass
 
 def getCallValueRelatedByteLocs(ast_json, chains, dot_files, root_dir):
     '''
+    Used to slice reentrency attack code.
     :param ast_json: json of ast, loaded as a python dict
     :param chains: a list of function call chains(e.g. [f1 -> f2 -> f3, g1 -> g2, h1, ...])
     :param dot_files: names of .dot files
     :param root_dir: root directory of the file being processed
-    :return: a list of smart contracts that have a function that contains call.value
+    :return: a list of byte locations of reentrency attack code
     '''
     # smart contract list
     sc_list = []
     # all chains that have a function that contains call.value
-    chains = getMaliciousChains(ast_json, chains, dot_files, root_dir)
+    chains = getMaliciousChains(ast_json, chains, dot_files, root_dir, haveCallVal)
     for chain in chains:
         for onepathItem in chain:
             contractName = onepathItem.split('.')[0]
@@ -377,73 +278,3 @@ def getCallValueRelatedByteLocs(ast_json, chains, dot_files, root_dir):
                 # print(sc)
     sc = list(set([m for i in sc_list for j in i for m in j]))
     return sc
-
-def getLines(byte_list, sc_filepath):
-    lineBreak = '\n'
-    code = ""
-    try:
-        with open(sc_filepath, "r", encoding="utf-8") as f:
-            code = f.read()
-    except:
-        raise Exception("Failed to get source code when detecting.")
-    code_lines = []
-    for i in byte_list:
-        code_lines.append(code[:i].count(lineBreak) + 1)
-    return sorted(set(code_lines))
-
-def slice_sol(sc_filepath, sc_byteset):
-    # byteset = sorted(sc_byteset)
-    # code = ""
-    # try:
-    #     with open(sc_filepath, "r", encoding="utf-8") as f:
-    #         code = f.read()
-    # except:
-    #     raise Exception("Failed to get source code when detecting.")
-    # code_lines = code.split('\n')
-    # siz = 0
-    # filtered = []
-    # for line in code_lines:
-    #     lsiz = len(line.encode('utf-8'))
-    #     siz += lsiz
-    #     if len(byteset) == 0:
-    #         break
-    #     while len(byteset) > 0 and siz >= byteset[0]:
-    #         byteset.pop(0)
-    #         filtered.append(line)
-    # return filtered
-
-    byteset = sorted(sc_byteset)  # Ensure the byteset is sorted
-    filtered = []
-    current_index = 0
-
-    try:
-        # Read the entire file as a single string
-        with open(sc_filepath, "r", encoding="utf-8") as f:
-            code = f.read()
-    except:
-        raise Exception("Failed to get source code when detecting.")
-    
-    # Convert the file to bytes for direct comparison
-    byteset_ptr = 0  # Pointer to the current byte position in byteset
-
-    # Process the file line by line
-    for line in code.splitlines():
-        # Calculate the range of this line in the byte representation
-        line_bytes = line.encode('utf-8')
-        line_start = current_index
-        line_end = current_index + len(line_bytes)
-        current_index = line_end + 1  # Account for newline (1 byte in UTF-8)
-
-        # Check if any byte positions in `byteset` fall within this line
-        while byteset_ptr < len(byteset) and line_start <= byteset[byteset_ptr] <= line_end:
-            filtered.append(line)  # Add the line to filtered
-            byteset_ptr += 1  # Move to the next byte position in byteset
-
-            # Exit early if all byte positions are found
-            if byteset_ptr >= len(byteset):
-                return filtered
-
-    return filtered
-
-if __name__ == '__main__':
-    pass

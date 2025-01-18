@@ -5,7 +5,11 @@ import solcx
 
 # internal
 from chain import get_chains
-from ast_sc_process import getCallValueRelatedByteLocs, slice_sol
+# reentrency
+from reentrency import getCallValueRelatedByteLocs
+# time stamp dependency
+from ts_dependency import getTSDependencyByteLocs
+from ast_util import slice_sol
 from clean import clean
 
 # std
@@ -62,8 +66,10 @@ for root, _, fs in os.walk("dataset"):
                 files.add((toadd, root, ver))
                 ver_pragmas.add(ver)
 
-# files = set()
+files = set()
 # files.add(("dataset/reentrancy/reentrancy_dao2.sol", "dataset/reentrancy", "0.4.19"))
+# files.add(("dataset/reentrancy/reentrancy_dao3.sol", "dataset/reentrancy", "0.4.19"))
+files.add(("dao2.sol/test.sol", "dao2.sol", "0.4.19"))
 print("Files found:")
 print(files)
 print("Versions found:")
@@ -173,6 +179,7 @@ for file, path, ver in files:
                     funcname = line.split(LABEL_INDICATOR)[0]
                     singles.add(funcname.split(' ')[0][1:-1])
 
+    print("edges", edges)
     # get all function call chains
     # e.g. f1 -> f2 -> f3, g1 -> g2, h1, ...
     # e.g. f and g(edges)
@@ -181,7 +188,9 @@ for file, path, ver in files:
     for single in singles:
         chains.append([single])
 
-    byte_locs = getCallValueRelatedByteLocs(ast_json, chains, dotfiles, target_dir)
+    # byte_locs = getCallValueRelatedByteLocs(ast_json, chains, dotfiles, target_dir)
+    byte_locs = getTSDependencyByteLocs(ast_json, chains, dotfiles, target_dir)
+    # exit(0)
     print(byte_locs)
     sliced_lines = slice_sol(f"{path}/{filename}", byte_locs)
     # print(sliced_lines)

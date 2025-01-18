@@ -9,6 +9,7 @@ def clean(file):
     code = clean_multibyte(code)
     code = clean_comments(code)
     code = clean_empty_lines(code)
+    code = replace_tabs(code)
     with open(file, 'w') as f:
         f.write(code)
 
@@ -52,6 +53,12 @@ def clean_empty_lines(code):
     Remove all empty lines from a .sol file.
     '''
     return '\n'.join([line for line in code.split('\n') if line.strip() != ''])
+
+def replace_tabs(code):
+    '''
+    Replace all tabs with spaces in a .sol file.
+    '''
+    return code.replace('\t', ' '*4)
 
 if __name__ == '__main__':
     # read argument
