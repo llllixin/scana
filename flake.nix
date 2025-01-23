@@ -46,15 +46,14 @@
                 python
                 pip
 								virtualenv
-                # Used for DAP protocol debugging
-                debugpy
 
                 # Desired Python packages
                 numpy
 								torch
 								pandas
 								scikit-learn
-								python312Packages.antlr4-python3-runtime
+								fasttext
+								antlr4-python3-runtime
                 # If nixpkgs don't have it or you want to use a different version,
                 # you can fetch it from PyPI
                 # For wheels, check out fetchPypi src: 
@@ -85,15 +84,18 @@
 							cpkgs.solidity-language-server
 							graphviz
 							antlr
+							jdk
+							fd
+							curl
             ];
 						venvDir = "./venv";
 						shellHook = ''
-							export VENV_DIR="./venv"
-							if [ ! -d "$VENV_DIR" ]; then
-								echo "Creating Python virtual environment in $VENV_DIR"
-								python -m venv $VENV_DIR
-							fi
-							source $VENV_DIR/bin/activate
+							# export VENV_DIR="./venv"
+							# if [ ! -d "$VENV_DIR" ]; then
+							# 	echo "Creating Python virtual environment in $VENV_DIR"
+							# 	python -m venv $VENV_DIR
+							# fi
+							# source $VENV_DIR/bin/activate
 							export SOLCX_BINARY_PATH=./.solcx/
 							export SHELL=$(which zsh)
 							exec zsh

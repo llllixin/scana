@@ -89,6 +89,21 @@ print("Installation complete.")
 
 # clearing .sol files
 
+# generate antlr trees of .sol files
+print("Generating ANTLR trees...")
+for file, kind, ver in files:
+    kind = kind.split("/")[-1]
+    filename = file.split("/")[-1]
+    target_dir = f"./out/{kind}/{filename}"
+    if os.path.exists(f"{target_dir}/antlr.txt"):
+        print(f"ANTLR of {file} already exists, skipping...")
+        continue
+    if not os.path.exists(target_dir):
+        os.makedirs(target_dir)
+    cmd = f"java -cp \"java/antlr.jar:java/antlrsrc.jar\" Tokenize {file} > {target_dir}/antlr.txt"
+    os.system(cmd)
+print("ANTLR generation complete.")
+
 # generate json of ast of .sol files
 print("Generating ASTs...")
 print("Target directory: out/")
@@ -187,9 +202,10 @@ for file, path, ver in files:
     # e.g. h(single node)
     for single in singles:
         chains.append([single])
+    # exit()
 
-    # byte_locs = getCallValueRelatedByteLocs(ast_json, chains, dotfiles, target_dir)
-    byte_locs = getTSDependencyByteLocs(ast_json, chains, dotfiles, target_dir)
+    byte_locs = getCallValueRelatedByteLocs(ast_json, chains, dotfiles, target_dir)
+    # byte_locs = getTSDependencyByteLocs(ast_json, chains, dotfiles, target_dir)
     # exit(0)
     print(byte_locs)
     sliced_lines = slice_sol(f"{path}/{filename}", byte_locs)

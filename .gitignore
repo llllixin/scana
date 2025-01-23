@@ -5,3 +5,4 @@ venv
 .solcx/*
 __pycache__/
 __pycache__
+java/out/*

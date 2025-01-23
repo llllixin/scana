@@ -10,13 +10,10 @@ sourceUnit
     | importDirective
     | contractDefinition
     | enumDefinition
-    | eventDefinition
     | structDefinition
     | functionDefinition
     | fileLevelConstant
     | customErrorDefinition
-    | typeDefinition
-    | usingForDeclaration
     )* EOF ;
 
 pragmaDirective
@@ -26,7 +23,7 @@ pragmaName
   : identifier ;
 
 pragmaValue
-  : '*' | version | expression ;
+  : version | expression ;
 
 version
   : versionConstraint ('||'? versionConstraint)* ;
@@ -64,12 +61,11 @@ contractPart
   | functionDefinition
   | eventDefinition
   | enumDefinition
-  | customErrorDefinition
-  | typeDefinition;
+  | customErrorDefinition;
 
 stateVariableDeclaration
   : typeName
-    ( PublicKeyword | InternalKeyword | PrivateKeyword | ConstantKeyword | TransientKeyword | ImmutableKeyword | overrideSpecifier )*
+    ( PublicKeyword | InternalKeyword | PrivateKeyword | ConstantKeyword | ImmutableKeyword | overrideSpecifier )*
     identifier ('=' expression)? ';' ;
 
 fileLevelConstant
@@ -78,22 +74,8 @@ fileLevelConstant
 customErrorDefinition
   : 'error' identifier parameterList ';' ;
 
-typeDefinition
-  : 'type' identifier
-    'is'  elementaryTypeName ';' ;
-
 usingForDeclaration
-  : 'using' usingForObject 'for' ('*' | typeName) GlobalKeyword? ';';
-
-usingForObject
-  : userDefinedTypeName
-  | '{' usingForObjectDirective ( ',' usingForObjectDirective )* '}';
-
-usingForObjectDirective
-  : userDefinedTypeName ( 'as' userDefinableOperators )?;
-
-userDefinableOperators
-  : '|' | '&' | '^' | '~' | '+' | '-' | '*' | '/' | '%' | '==' | '!=' | '<' | '>' | '<=' | '>=' ;
+  : 'using' identifier 'for' ('*' | typeName) ';' ;
 
 structDefinition
   : 'struct' identifier
@@ -166,10 +148,7 @@ mappingKey
   | userDefinedTypeName ;
 
 mapping
-  : 'mapping' '(' mappingKey mappingKeyName? '=>' typeName mappingValueName? ')' ;
-
-mappingKeyName : identifier;
-mappingValueName : identifier;
+  : 'mapping' '(' mappingKey '=>' typeName ')' ;
 
 functionTypeName
   : 'function' functionTypeParameterList
@@ -229,10 +208,7 @@ forStatement
   : 'for' '(' ( simpleStatement | ';' ) ( expressionStatement | ';' ) expression? ')' statement ;
 
 inlineAssemblyStatement
-  : 'assembly' StringLiteralFragment? ('(' inlineAssemblyStatementFlag ')')? assemblyBlock ;
-
-inlineAssemblyStatementFlag
-  : stringLiteral;
+  : 'assembly' StringLiteralFragment? assemblyBlock ;
 
 doWhileStatement
   : 'do' statement 'while' '(' expression ')' ';' ;
@@ -268,27 +244,19 @@ elementaryTypeName
   : 'address' | 'bool' | 'string' | 'var' | Int | Uint | 'byte' | Byte | Fixed | Ufixed ;
 
 Int
-  : 'int' (NumberOfBits)? ;
+  : 'int' | 'int8' | 'int16' | 'int24' | 'int32' | 'int40' | 'int48' | 'int56' | 'int64' | 'int72' | 'int80' | 'int88' | 'int96' | 'int104' | 'int112' | 'int120' | 'int128' | 'int136' | 'int144' | 'int152' | 'int160' | 'int168' | 'int176' | 'int184' | 'int192' | 'int200' | 'int208' | 'int216' | 'int224' | 'int232' | 'int240' | 'int248' | 'int256' ;
 
 Uint
-  : 'uint' (NumberOfBits)? ;
+  : 'uint' | 'uint8' | 'uint16' | 'uint24' | 'uint32' | 'uint40' | 'uint48' | 'uint56' | 'uint64' | 'uint72' | 'uint80' | 'uint88' | 'uint96' | 'uint104' | 'uint112' | 'uint120' | 'uint128' | 'uint136' | 'uint144' | 'uint152' | 'uint160' | 'uint168' | 'uint176' | 'uint184' | 'uint192' | 'uint200' | 'uint208' | 'uint216' | 'uint224' | 'uint232' | 'uint240' | 'uint248' | 'uint256' ;
 
 Byte
-  : 'bytes' (NumberOfBytes)?;
+  : 'bytes' | 'bytes1' | 'bytes2' | 'bytes3' | 'bytes4' | 'bytes5' | 'bytes6' | 'bytes7' | 'bytes8' | 'bytes9' | 'bytes10' | 'bytes11' | 'bytes12' | 'bytes13' | 'bytes14' | 'bytes15' | 'bytes16' | 'bytes17' | 'bytes18' | 'bytes19' | 'bytes20' | 'bytes21' | 'bytes22' | 'bytes23' | 'bytes24' | 'bytes25' | 'bytes26' | 'bytes27' | 'bytes28' | 'bytes29' | 'bytes30' | 'bytes31' | 'bytes32' ;
 
 Fixed
-  : 'fixed' ( NumberOfBits 'x' [0-9]+ )? ;
+  : 'fixed' | ( 'fixed' [0-9]+ 'x' [0-9]+ ) ;
 
 Ufixed
-  : 'ufixed' ( NumberOfBits 'x' [0-9]+ )? ;
-
-fragment
-NumberOfBits
-  : '8' | '16' | '24' | '32' | '40' | '48' | '56' | '64' | '72' | '80' | '88' | '96' | '104' | '112' | '120' | '128' | '136' | '144' | '152' | '160' | '168' | '176' | '184' | '192' | '200' | '208' | '216' | '224' | '232' | '240' | '248' | '256' ;
-
-fragment
-NumberOfBytes
-  : [1-9] | [12] [0-9] | '3' [0-2] ;
+  : 'ufixed' | ( 'ufixed' [0-9]+ 'x' [0-9]+ ) ;
 
 expression
   : expression ('++' | '--')
@@ -301,10 +269,10 @@ expression
   | '(' expression ')'
   | ('++' | '--') expression
   | ('+' | '-') expression
-  | 'delete' expression
+  | ('after' | 'delete') expression
   | '!' expression
   | '~' expression
-  | <assoc=right> expression '**' expression
+  | expression '**' expression
   | expression ('*' | '/' | '%') expression
   | expression ('+' | '-') expression
   | expression ('<<' | '>>') expression
@@ -315,7 +283,7 @@ expression
   | expression ('==' | '!=') expression
   | expression '&&' expression
   | expression '||' expression
-  | <assoc=right> expression '?' expression ':' expression
+  | expression '?' expression ':' expression
   | expression ('=' | '|=' | '^=' | '&=' | '<<=' | '>>=' | '+=' | '-=' | '*=' | '/=' | '%=') expression
   | primaryExpression ;
 
@@ -324,11 +292,11 @@ primaryExpression
   | numberLiteral
   | hexLiteral
   | stringLiteral
-  | identifier
+  | identifier ('[' ']')?
   | TypeKeyword
   | PayableKeyword
   | tupleExpression
-  | typeName;
+  | typeNameExpression ('[' ']')? ;
 
 expressionList
   : expression (',' expression)* ;
@@ -364,6 +332,7 @@ assemblyItem
   | BreakKeyword
   | ContinueKeyword
   | LeaveKeyword
+  | subAssembly
   | numberLiteral
   | stringLiteral
   | hexLiteral ;
@@ -381,19 +350,16 @@ assemblyLocalDefinition
   : 'let' assemblyIdentifierOrList ( ':=' assemblyExpression )? ;
 
 assemblyAssignment
-  : assemblyIdentifierOrList ':=' assemblyExpression;
+  : assemblyIdentifierOrList ':=' assemblyExpression ;
 
 assemblyIdentifierOrList
-  : identifier
-  | assemblyMember
-  | assemblyIdentifierList
-  | '(' assemblyIdentifierList ')';
+  : identifier | assemblyMember | '(' assemblyIdentifierList ')' ;
 
 assemblyIdentifierList
   : identifier ( ',' identifier )* ;
 
 assemblyStackAssignment
-  : assemblyExpression '=:' identifier ;
+  : '=:' identifier ;
 
 labelDefinition
   : identifier ':' ;
@@ -420,11 +386,18 @@ assemblyIf
   : 'if' assemblyExpression assemblyBlock ;
 
 assemblyLiteral
-  : stringLiteral | DecimalNumber | HexNumber | hexLiteral | BooleanLiteral ;
+  : stringLiteral | DecimalNumber | HexNumber | hexLiteral ;
+
+subAssembly
+  : 'assembly' identifier assemblyBlock ;
 
 tupleExpression
   : '(' ( expression? ( ',' expression? )* ) ')'
   | '[' ( expression ( ',' expression )* )? ']' ;
+
+typeNameExpression
+  : elementaryTypeName
+  | userDefinedTypeName ;
 
 numberLiteral
   : (DecimalNumber | HexNumber) NumberUnit? ;
@@ -432,13 +405,13 @@ numberLiteral
 // some keywords need to be added here to avoid ambiguities
 // for example, "revert" is a keyword but it can also be a function name
 identifier
-  : ('from' | 'calldata' | 'receive' | 'callback' | 'revert' | 'error' | 'address' | GlobalKeyword | ConstructorKeyword | PayableKeyword | LeaveKeyword | Identifier) ;
+  : ('from' | 'calldata' | 'receive' | 'callback' | 'revert' | 'error' | ConstructorKeyword | PayableKeyword | LeaveKeyword | Identifier) ;
 
 BooleanLiteral
   : 'true' | 'false' ;
 
 DecimalNumber
-  : ( DecimalDigits | (DecimalDigits? '.' DecimalDigits) ) ( [eE] '-'? DecimalDigits )? ;
+  : ( DecimalDigits | (DecimalDigits? '.' DecimalDigits) ) ( [eE] DecimalDigits )? ;
 
 fragment
 DecimalDigits
@@ -460,44 +433,35 @@ hexLiteral : HexLiteralFragment+ ;
 HexLiteralFragment : 'hex' ('"' HexDigits? '"' | '\'' HexDigits? '\'') ;
 
 fragment
+HexPair
+  : HexCharacter HexCharacter ;
+
+fragment
 HexCharacter
   : [0-9A-Fa-f] ;
 
 ReservedKeyword
-  : 'after'
-  | 'alias'
-  | 'apply'
-  | 'auto'
+  : 'abstract'
+  | 'after'
   | 'case'
-  | 'copyof'
+  | 'catch'
   | 'default'
-  | 'define'
   | 'final'
-  | 'implements'
   | 'in'
   | 'inline'
   | 'let'
-  | 'macro'
   | 'match'
-  | 'mutable'
   | 'null'
   | 'of'
-  | 'partial'
-  | 'promise'
-  | 'reference'
   | 'relocatable'
-  | 'sealed'
-  | 'sizeof'
   | 'static'
-  | 'supports'
   | 'switch'
-  | 'typedef'
+  | 'try'
   | 'typeof' ;
 
 AnonymousKeyword : 'anonymous' ;
 BreakKeyword : 'break' ;
 ConstantKeyword : 'constant' ;
-TransientKeyword : 'transient' ;
 ImmutableKeyword : 'immutable' ;
 ContinueKeyword : 'continue' ;
 LeaveKeyword : 'leave' ;
@@ -511,7 +475,6 @@ VirtualKeyword : 'virtual' ;
 PureKeyword : 'pure' ;
 TypeKeyword : 'type' ;
 ViewKeyword : 'view' ;
-GlobalKeyword : 'global' ;
 
 ConstructorKeyword : 'constructor' ;
 FallbackKeyword : 'fallback' ;
@@ -534,7 +497,8 @@ stringLiteral
   : StringLiteralFragment+ ;
 
 StringLiteralFragment
-  : 'unicode'? ( '"' DoubleQuotedStringCharacter* '"' | '\'' SingleQuotedStringCharacter* '\'' ) ;
+  : 'unicode'? '"' DoubleQuotedStringCharacter* '"'
+  | 'unicode'? '\'' SingleQuotedStringCharacter* '\'' ;
 
 fragment
 DoubleQuotedStringCharacter

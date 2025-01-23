@@ -175,7 +175,7 @@ def getTSDependencyByteLocs(ast_json, chains, dot_files, root_dir):
                 ids_filtered.append(id['attributes']['value'])
             if_nodes = findASTNode(funcnode, 'name', 'IfStatement')
             for id in ids_filtered:
-                for l in findIdentifierByteLocs(ast_json, id):
+                for l in findIdentifierByteLocs(ast_json, id['attributes']['value']):
                     locs.add(l)
                 idstart, idend = 1
                 for if_node in if_nodes:
