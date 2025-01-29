@@ -1,6 +1,10 @@
+import os
+import sys
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+import build_vocab
 
 # word2vec model, skip-gram
 class SkipGram(nn.Module):
@@ -9,7 +13,7 @@ class SkipGram(nn.Module):
 
         self.in_embed = nn.Embedding(vocab_size, embed_size)
         self.out_embed = nn.Embedding(vocab_size, embed_size)
-        self.log_sigmoid = nn.LogSigmoid()
+        # self.log_sigmoid = nn.LogSigmoid()
 
     def forward(self, target, pos_context, neg_context):
         v = self.in_embed(target) # batch_size, embed_size
@@ -22,14 +26,16 @@ class SkipGram(nn.Module):
         return pos_score, neg_score
 
     def loss(self, pos_score, neg_score, mask):
-        pos_loss = -self.log_sigmoid(pos_score)
+        # pos_loss = -self.log_sigmoid(pos_score)
+        pos_loss = -F.logsigmoid(pos_score)
         pos_loss = pos_loss * mask
-        pos_loss = torch.sum(pos_loss, dim=1) / torch.sum(mask, dim=1)
-        neg_loss = -self.log_sigmoid(-neg_score)
+        pos_loss = torch.sum(pos_loss, dim=1) / (torch.sum(mask, dim=1) + 1e-6)
+        # neg_loss = -self.log_sigmoid(-neg_score)
+        neg_loss = -F.logsigmoid(-neg_score)
 
         return pos_loss.mean() + neg_loss.mean()
 
-    def train_sg(self, epoch, target, pos_context, neg_context, mask, lr=0.01):
+    def train_sg(self, base, epoch, target, pos_context, neg_context, mask, lr=1e-4):
         '''
         Args:
             target is a tensor of shape (b, d), 
@@ -45,25 +51,39 @@ class SkipGram(nn.Module):
             loss.backward()
             optimizer.step()
 
-            if e % 100 == 0:
-                print(f"Epoch {e}, loss: {loss.item()}")
+            if (base + e) % 100 == 0:
+                print(f"Epoch {base + e}, loss: {loss.item()}")
+                torch.save(self.state_dict(), f"model/w2v/sg_epoch{base+e}.pt")
 
-# testing code, will remove in the future
+def get_embd(token):
+    device = torch.device("cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu"))
+    vocab = build_vocab.build_vocab_from_file()
+    word2idx = {word: idx+1 for idx, word in enumerate(vocab)}
+    word2idx["<pad>"] = 0
+    vocab.add("<pad>")
+    sg = SkipGram(len(vocab), 50).to(device)
+    checkpoint = "model/w2v/sg_epoch3900.pt"
+    sg.load_state_dict(torch.load(checkpoint))
+    idx = word2idx[token]
+    idx = torch.tensor([idx]).to(device)
+    embd = sg.in_embed(idx)
+    print(embd)
+    return embd
+
 if __name__ == '__main__':
-    sentences = [
-            "the quick brown fox jumps over the lazy dog",
-            "i love machine learning",
-            "this is not a good idea",
-            "where is everybody",
-            ]
+    vocab = build_vocab.build_vocab_from_file()
+    sentences = []
+    for root, _, files in os.walk("./out"):
+        for file in files:
+            if file != "sliced.txt" and file != "antlr.txt":
+                continue
+            with open(os.path.join(root, file), "r") as f:
+                lines = f.readlines()
+                for line in lines:
+                    sentences.append(line[:-1] if line[-1] == '\n' else line)
+
     print("sentences:")
     print(sentences)
-    vocab = set()
-    for s in sentences:
-        for word in s.split():
-            vocab.add(word)
-    print("constructed vocab:")
-    print(vocab)
 
     device = torch.device("cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu"))
 
@@ -86,11 +106,12 @@ if __name__ == '__main__':
     neg_context = []
     mask = []
     for s in sentences:
-        words = s.split()
-        for i, word in enumerate(words):
+        # tokens = s.split()
+        tokens = build_vocab.tokenize(s)
+        for i, word in enumerate(tokens):
             target = word2idx[word]
             targets.append(target)
-            pos = [word2idx[words[j]] for j in range(max(i-window_size, 0), min(i+window_size+1, len(words))) if j != i]
+            pos = [word2idx[tokens[j]] for j in range(max(i-window_size, 0), min(i+window_size+1, len(tokens))) if j != i]
             pad_len = 2*window_size - len(pos)
             if pad_len > 0:
                 pos += [0] * pad_len
@@ -116,21 +137,18 @@ if __name__ == '__main__':
     print("neg_context:", neg_context.shape)
     print(neg_context)
 
-    idx = word2idx["good"]
-    idy = word2idx["idea"]
-    idx = torch.tensor([idx]).to(device)
-    idy = torch.tensor([idy]).to(device)
+    if len(sys.argv) > 2:
+        checkpoint = sys.argv[1]
+        epoch = int(sys.argv[2])
+        cur = checkpoint.split(".")[0].split("sg_epoch")[0]
+        sg = SkipGram(len(vocab), 50).to(device)
+        sg.load_state_dict(torch.load(checkpoint))
+        sg.train_sg(cur, epoch, targets, pos_context, neg_context, mask)
+    elif len(sys.argv) > 1:
+        epoch = int(sys.argv[1])
+        sg = SkipGram(len(vocab), 50).to(device)
+        sg.train_sg(0, epoch, targets, pos_context, neg_context, mask)
+    else:
+        sg = SkipGram(len(vocab), 50).to(device)
+        sg.train_sg(0, 1000, targets, pos_context, neg_context, mask)
 
-    sg = SkipGram(len(vocab), 10).to(device)
-    bef_idx = sg.in_embed(idx)
-    bef_idy = sg.out_embed(idy)
-    bef_cos = F.cosine_similarity(bef_idx, bef_idy)
-    print("before training:", bef_cos)
-
-    sg.train_sg(1000, targets, pos_context, neg_context, mask)
-
-    sg.eval()
-    aft_idx = sg.in_embed(idx)
-    aft_idy = sg.out_embed(idy)
-    aft_cos = F.cosine_similarity(aft_idx, aft_idy)
-    print("after training:", aft_cos)

@@ -1,4 +1,6 @@
 import re
+import sys
+import os
 
 def clean(file):
     '''
@@ -62,9 +64,15 @@ def replace_tabs(code):
 
 if __name__ == '__main__':
     # read argument
-    import sys
     if len(sys.argv) < 2:
-        print("Usage: python clean.py <file>")
+        print("Usage: python clean.py <file>/<dir>")
         sys.exit(1)
-    file = sys.argv[1]
-    clean(file)
+    input = sys.argv[1]
+    if os.path.isdir(input):
+        for root, _, files in os.walk(input):
+            for file in files:
+                if file.endswith('.sol'):
+                    clean(os.path.join(root, file))
+    else:
+        file = sys.argv[1]
+        clean(file)

@@ -127,7 +127,9 @@ def getAddressVariable(ast_json, contractName, functionName):
                         # indicates that b.x is an address
                         identifier_dict[mem_declaration_] = mem_item['attributes']['member_name']
                 for identifier_item in identifier_ast:
-                    if identifier_item["attributes"]["referencedDeclaration"]:
+                    # check whether is referencedDeclaration
+                    # if identifier_item["attributes"]["referencedDeclaration"]:
+                    if "referencedDeclaration" in identifier_item["attributes"]:
                         if identifier_item["attributes"]["type"] == "address" or \
                             identifier_item['attributes']['type'] == 'address payable' or \
                             identifier_item["attributes"]["type"] == "contract OwnedUpgradeabilityProxy" or \
@@ -196,6 +198,8 @@ def getAddressRelatedSC(ast_json, contractName, functionName, var_dict):
                 if_pos.append((if_startPos, be, bs, if_endPos))
 
             for identifierItem in identifier_ast:
+                if 'referencedDeclaration' not in identifierItem['attributes']:
+                    continue
                 if identifierItem['attributes']['referencedDeclaration'] != address_key_:
                     continue;
                 iden_startPos, iden_endPos = srcToPos(identifierItem['src'])
@@ -211,6 +215,8 @@ def getAddressRelatedSC(ast_json, contractName, functionName, var_dict):
                 if addressID_startPos >= funcStartPos  and addressID_endPos <= funcEndPos:
                     identifier_ast = findASTNode(funcItem, "name", "Identifier")
                     for identifier_item in identifier_ast:
+                        if not "referencedDeclaration" in identifier_item["attributes"]:
+                            continue
                         if identifier_item["attributes"]["referencedDeclaration"] == address_key_:
                             if identifier_item["attributes"]["type"] == "address" or \
                                     identifier_item["attributes"][

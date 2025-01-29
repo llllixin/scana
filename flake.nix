@@ -87,15 +87,16 @@
 							jdk
 							fd
 							curl
+							unzip
             ];
 						venvDir = "./venv";
 						shellHook = ''
-							# export VENV_DIR="./venv"
-							# if [ ! -d "$VENV_DIR" ]; then
-							# 	echo "Creating Python virtual environment in $VENV_DIR"
-							# 	python -m venv $VENV_DIR
-							# fi
-							# source $VENV_DIR/bin/activate
+							export VENV_DIR="./venv"
+							if [ ! -d "$VENV_DIR" ]; then
+								echo "Creating Python virtual environment in $VENV_DIR"
+								python -m venv $VENV_DIR
+							fi
+							source $VENV_DIR/bin/activate
 							export SOLCX_BINARY_PATH=./.solcx/
 							export SHELL=$(which zsh)
 							exec zsh
