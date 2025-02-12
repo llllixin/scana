@@ -4,7 +4,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import build_vocab
 
 # word2vec model, skip-gram
 class SkipGram(nn.Module):
@@ -55,22 +54,24 @@ class SkipGram(nn.Module):
                 print(f"Epoch {base + e}, loss: {loss.item()}")
                 torch.save(self.state_dict(), f"model/w2v/sg_epoch{base+e}.pt")
 
-def get_embd(token):
-    device = torch.device("cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu"))
+def get_embd(tokens):
+    import w2v.build_vocab as build_vocab
+    # device = torch.device("cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu"))
     vocab = build_vocab.build_vocab_from_file()
     word2idx = {word: idx+1 for idx, word in enumerate(vocab)}
     word2idx["<pad>"] = 0
     vocab.add("<pad>")
-    sg = SkipGram(len(vocab), 50).to(device)
-    checkpoint = "model/w2v/sg_epoch3900.pt"
+    # sg = SkipGram(len(vocab), 50).to(device)
+    sg = SkipGram(len(vocab), 50)
+    checkpoint = "model/w2v/sg_epoch0.pt"
     sg.load_state_dict(torch.load(checkpoint))
-    idx = word2idx[token]
-    idx = torch.tensor([idx]).to(device)
+    idx = torch.tensor([word2idx[token] for token in tokens])
     embd = sg.in_embed(idx)
-    print(embd)
+    # print(embd)
     return embd
 
 if __name__ == '__main__':
+    import build_vocab
     vocab = build_vocab.build_vocab_from_file()
     sentences = []
     for root, _, files in os.walk("./out"):
@@ -91,10 +92,11 @@ if __name__ == '__main__':
     word2idx["<pad>"] = 0
     vocab.add("<pad>")
     idx2word = {idx: word for word, idx in word2idx.items()}
-    print("word2idx:")
-    print(word2idx)
-    print("idx2word:")
-    print(idx2word)
+    # print("word2idx:")
+    # print(word2idx)
+    # print("idx2word:")
+    # print(idx2word)
+    print(len(vocab))
 
     batch_size = 0
     for s in sentences:

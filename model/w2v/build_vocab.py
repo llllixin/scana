@@ -49,6 +49,13 @@ def tokenize(line):
     res = list(filter(lambda c: c != '', tmp))
     return list(filter(lambda c: c != ' ', res))
 
+def to_ids(tokens, vocab):
+    word2idx = {word: idx+1 for idx, word in enumerate(vocab)}
+    word2idx["<pad>"] = 0
+    vocab.add("<pad>")
+    # idx2word = {idx: word for word, idx in word2idx.items()}
+    return [word2idx[token] for token in tokens]
+
 def build_vocab_from_code():
     dirs = os.listdir('./out')
 
@@ -72,8 +79,6 @@ def build_vocab_from_code():
                         tokens = set(tokenize(code))
                         for token in tokens:
                             vocab.add(token)
-    vocab.add('\n')
-    vocab.add(' ')
     return vocab
 
 def build_vocab_from_file():
