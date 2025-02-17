@@ -32,16 +32,22 @@ If `sliced.txt` is not present, no vulnerabilities were found in that code.
 
 # Generating Vocabulary From ./out:
 ```bash
-python model/w2v/build_vocab.py
+pythom -m model.w2v.build_vocab
 ```
 
 # Training Word2Vec:
 ```bash
-python model/w2v/model.py
-# or
-python model/w2v/model.py <path-to-checkpoint> <epoch>
-# or
-python model/w2v/model.py <epoch>
+# List present w2v models:
+python -m model.w2v.train list
+# Train a new w2v model:
+python -m model.w2v.train train
+# Use --help to see flags & options
+```
+
+# Training BLSTM:
+```bash
+python -m model.train train
+# Use --help to see flags & options
 ```
 
 ##### You can run clean.sh to get rid of:

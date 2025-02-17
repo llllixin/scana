@@ -6,3 +6,5 @@ venv
 __pycache__/
 __pycache__
 java/out/*
+model/checkpoints/*
+model/w2v/checkpoints/*
