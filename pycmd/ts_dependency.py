@@ -1,5 +1,5 @@
 # internal
-from ast_util import findASTNode, srcToPos, getMaliciousChains
+from .ast_util import findASTNode, srcToPos, getMaliciousChains
 
 if __name__ == '__main__':
     pass

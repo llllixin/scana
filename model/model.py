@@ -17,7 +17,6 @@ class Fusion_Model_BLSTM_ATT(nn.Module):
             # data,
             w2v_cp,
             device=None,
-            mode='train',
             base=0
         ):
         """
@@ -33,16 +32,12 @@ class Fusion_Model_BLSTM_ATT(nn.Module):
         self.hidden_size = args['hidden_size']
         self.dropout = args['dropout']
 
-        if base > 0:
-            base_path = os.path.join(model_save_path, epoch2cp(base))
-            if not os.path.exists(base_path):
-                raise FileNotFoundError(f"Specified base checkpoint {base_path} not found") 
-            self.load_state_dict(torch.load(base_path))
 
-        self.base = base
-
-        self.dataset = CodeDataset(w2v_cp, device, mode=mode)
+        self.dataset = CodeDataset(w2v_cp, device, mode='train')
         self.loader = DataLoader(self.dataset, batch_size=4, shuffle=True)
+
+        self.eval_dataset = CodeDataset(w2v_cp, device, mode='eval')
+        self.eval_loader = DataLoader(self.dataset, batch_size=4, shuffle=True)
 
         # getting dim
         example_batch, _ = next(iter(self.loader))
@@ -62,6 +57,14 @@ class Fusion_Model_BLSTM_ATT(nn.Module):
         self.attention = nn.Linear(self.hidden_size*2, 1)
         self.softmax = nn.Softmax(dim=1)
         self.classifier = nn.Linear(self.hidden_size*2, 2)
+
+        if base > 0:
+            base_path = os.path.join(model_save_path, epoch2cp(base))
+            if not os.path.exists(base_path):
+                raise FileNotFoundError(f"Specified base checkpoint {base_path} not found") 
+            self.load_state_dict(torch.load(base_path))
+
+        self.base = base
 
         self.to(device)
 
@@ -101,6 +104,7 @@ class Fusion_Model_BLSTM_ATT(nn.Module):
                     lr=1e-4):
         optimizer = torch.optim.Adam(self.parameters(), lr=lr)
         criterion = nn.CrossEntropyLoss()
+        torch.nn.utils.clip_grad_norm_(self.parameters(), 1.0)
         print(f"Training started at {datetime.datetime.now()}")
         start_time = time.time()
 
@@ -109,6 +113,7 @@ class Fusion_Model_BLSTM_ATT(nn.Module):
             total_loss = 0
             for x_batch, y_batch in self.loader:
                 x_batch = x_batch.float()
+                print("x_batch shape: ", x_batch.shape)
                 y_batch = y_batch.long()
                 optimizer.zero_grad()
                 logits = self(x_batch)
@@ -117,29 +122,41 @@ class Fusion_Model_BLSTM_ATT(nn.Module):
                 optimizer.step()
                 total_loss += loss.item()
 
-            avg_loss = total_loss / len(self.loader)
             if epoch % 10 == 0:
-                print(f"Epoch {epoch}, Loss: {avg_loss:.4f}")
+                avg_loss = total_loss / len(self.loader)
                 epoch_time = time.time() - start_time
                 print(f"Epoch {self.base + epoch}, loss: {avg_loss:.6f}")
+                self.eval_model()
                 print(f"Time taken for epoch: {epoch_time:.2f} seconds")
                 start_time = time.time()
                 # saving the model
                 model_path = os.path.join(model_save_path, epoch2cp(self.base + epoch))
                 torch.save(self.state_dict(), model_path)
 
-    # def eval_model(self):
-    #     self.eval()
-    #     with torch.no_grad():
-    #         output = self(self.x_test)
-    #         _, indices = torch.max(output, 1)
-    #         correct = torch.sum(indices == self.y_test.long())
-    #         total = self.y_test.size(0)
-    #         accuracy = correct.float() / total
-    #         print(f"Accuracy: {accuracy}")
-    #
-    #     return output
+    def eval_model(self):
+        self.eval()
+        criterion = nn.CrossEntropyLoss()
+        with torch.no_grad():
+            total_loss = 0
+            for x_batch, y_batch in self.eval_loader:
+                x_batch = x_batch.float()
+                y_batch = y_batch.long()
+                logits = self(x_batch)
+                loss = criterion(logits, y_batch)
+                total_loss += loss.item()
+            avg_loss = total_loss / len(self.eval_loader)
+            print(f"Validation loss: {avg_loss:.6f}")
 
+    def predict(self, x):
+        self.eval()
+        x = x.to(self.device)
+        x = x.unsqueeze(0)
+        print("shape: ", x.shape)
+        with torch.no_grad():
+            x = x.float()
+            logits = self(x)
+            probs = torch.softmax(logits, dim=1)
+            return probs
 
 # example & debugging
 # input is batches of [label, [v1, v2, ..., vn]]
