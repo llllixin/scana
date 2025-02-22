@@ -6,7 +6,8 @@ import argparse
 import torch
 
 from . import cp2epoch, model_save_path
-from .w2v.model import get_embd
+from .w2v.build_vocab import gen_vocab
+from .w2v.model import SkipGram, get_embd_from_sg, get_embd
 from .model import Fusion_Model_BLSTM_ATT
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
@@ -35,71 +36,131 @@ def parse_args():
 
     return parser.parse_args()
 
-if __name__ != '__main__':
-    print("model/train.py is not meant to be imported, \
-            it's meant to be run as a script using \
-            `python -m model.train`")
-    exit()
-    
-args = parse_args()
-if args.command == 'train':
-    num_epochs = args.epochs
-    base = args.base
-    learning_rate = args.lr
-    w2v_cp = args.w2v
+if __name__ == '__main__':
+    args = parse_args()
+    if args.command == 'train':
+        num_epochs = args.epochs
+        base = args.base
+        learning_rate = args.lr
+        w2v_cp = args.w2v
 
+        cuda_available = torch.cuda.is_available()
+        print(f"CUDA Available: {cuda_available}")
+        mps_available = torch.backends.mps.is_available()
+        print(f"MPS Available: {mps_available}")
+        cpu_available = torch.device('cpu')
+        print(f"CPU Available: {cpu_available}")
+        device = torch.device('cuda' if cuda_available else ('mps' if mps_available else 'cpu'))
+
+        model = Fusion_Model_BLSTM_ATT(
+            w2v_cp,
+            device=device,
+            base=base
+        )
+
+        model.train_model(
+            num_epochs,
+            lr=learning_rate
+        )
+        exit()
+
+    if args.command == 'list':
+        print("Listing available checkpoints")
+        cps = []
+        for cp in os.listdir(model_save_path):
+            epoch = cp2epoch(cp)
+            if epoch is not None:
+                cps.append(epoch)
+
+        if len(cps) == 0:
+            print("No checkpoints found, try training a model first")
+        else:
+            print("Available checkpoints:")
+            for cp in cps:
+                print(cp)
+
+        exit()
+
+    if args.command == 'infer':
+        base = args.base
+        w2v_cp = args.w2v
+        fp = args.file
+
+        if not os.path.exists(fp):
+            raise FileNotFoundError(f"File {fp} not found")
+
+        cuda_available = torch.cuda.is_available()
+        print(f"CUDA Available: {cuda_available}")
+        mps_available = torch.backends.mps.is_available()
+        print(f"MPS Available: {mps_available}")
+        cpu_available = torch.device('cpu')
+        print(f"CPU Available: {cpu_available}")
+        device = torch.device('cuda' if cuda_available else ('mps' if mps_available else 'cpu'))
+
+        process.process(filepath=fp)
+        files = os.listdir('eval')
+
+        # assert that both files are present
+        if not 'sliced.txt' in files:
+            raise FileNotFoundError("sliced.txt not found")
+        if not 'antlr.txt' in files:
+            raise FileNotFoundError("antlr.txt not found")
+
+        code = ''
+        sliced_path = os.path.join('eval', 'sliced.txt')
+        with open(sliced_path, 'r') as f:
+            s_code = f.read().replace('\n', ' ')
+            code += s_code
+        code += ' '
+        antlr_path = os.path.join('eval', 'antlr.txt')
+        with open(antlr_path, 'r') as f:
+            a_code = f.read().replace('\n', ' ')
+            code += a_code
+
+        # w2v_cp_path = os.path.join(w2v_save_path, epoch2cp(w2v_cp))
+        vecs = get_embd(code, w2v_cp)
+
+        model = Fusion_Model_BLSTM_ATT(
+            w2v_cp,
+            device=device,
+            base=base
+        )
+
+        result = model.predict(vecs)
+        print(result)
+        exit()
+
+def warmup(
+        base: int,
+        w2v_cp: int,
+    ):
+    """
+    For efficiency, we pre-load the model and word2vec model
+    """
     cuda_available = torch.cuda.is_available()
-    print(f"CUDA Available: {cuda_available}")
     mps_available = torch.backends.mps.is_available()
-    print(f"MPS Available: {mps_available}")
-    cpu_available = torch.device('cpu')
-    print(f"CPU Available: {cpu_available}")
     device = torch.device('cuda' if cuda_available else ('mps' if mps_available else 'cpu'))
-
     model = Fusion_Model_BLSTM_ATT(
         w2v_cp,
         device=device,
-        base=base
+        base=base,
+        inference=True
     )
+    vocab, _ = gen_vocab()
+    sg = SkipGram(len(vocab), base=w2v_cp)
+    return model, sg
 
-    model.train_model(
-        num_epochs,
-        lr=learning_rate
-    )
-    exit()
-
-if args.command == 'list':
-    print("Listing available checkpoints")
-    cps = []
-    for cp in os.listdir(model_save_path):
-        epoch = cp2epoch(cp)
-        if epoch is not None:
-            cps.append(epoch)
-
-    if len(cps) == 0:
-        print("No checkpoints found, try training a model first")
-    else:
-        print("Available checkpoints:")
-        for cp in cps:
-            print(cp)
-
-    exit()
-
-if args.command == 'infer':
-    base = args.base
-    w2v_cp = args.w2v
-    fp = args.file
-
+def analyze_file(
+        model: Fusion_Model_BLSTM_ATT,
+        w2v_model: SkipGram,
+        fp: str
+    ):
+    """
+    In here we utilize the model and word2vec model that we loaded using 
+    warmup() to analyze
+    """
     if not os.path.exists(fp):
         raise FileNotFoundError(f"File {fp} not found")
-
-    cuda_available = torch.cuda.is_available()
-    print(f"CUDA Available: {cuda_available}")
-    mps_available = torch.backends.mps.is_available()
-    print(f"MPS Available: {mps_available}")
-    cpu_available = torch.device('cpu')
-    print(f"CPU Available: {cpu_available}")
-    device = torch.device('cuda' if cuda_available else ('mps' if mps_available else 'cpu'))
 
     process.process(filepath=fp)
     files = os.listdir('eval')
@@ -121,14 +182,7 @@ if args.command == 'infer':
         a_code = f.read().replace('\n', ' ')
         code += a_code
 
-    # w2v_cp_path = os.path.join(w2v_save_path, epoch2cp(w2v_cp))
-    vecs = get_embd(code, w2v_cp)
-
-    model = Fusion_Model_BLSTM_ATT(
-        w2v_cp,
-        device=device,
-        base=base
-    )
+    vecs = get_embd_from_sg(w2v_model, code)
 
     result = model.predict(vecs)
-    print(result)
+    return result.tolist()[0][1]

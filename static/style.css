@@ -1,0 +1,19 @@
+.container {
+    display: flex;
+    justify-content: center;  
+    align-items: center;      
+    height: 100vh;            
+}
+
+.centered-content {
+    width: 50%;               
+    padding: 20px;            
+    background-color: lightgray;
+}
+
+.horizontal-list {
+    display: flex;           
+    list-style-type: none;   
+    padding: 0;              
+    margin: 0;               
+}

@@ -17,7 +17,8 @@ class Fusion_Model_BLSTM_ATT(nn.Module):
             # data,
             w2v_cp,
             device=None,
-            base=0
+            base=0,
+            inference=False
         ):
         """
         data: shape = (batch_size, seq_len, num_channel)
@@ -32,16 +33,17 @@ class Fusion_Model_BLSTM_ATT(nn.Module):
         self.hidden_size = args['hidden_size']
         self.dropout = args['dropout']
 
+        if not inference:
+            self.dataset = CodeDataset(w2v_cp, device, mode='train')
+            self.loader = DataLoader(self.dataset, batch_size=4, shuffle=True)
 
-        self.dataset = CodeDataset(w2v_cp, device, mode='train')
-        self.loader = DataLoader(self.dataset, batch_size=4, shuffle=True)
+            self.eval_dataset = CodeDataset(w2v_cp, device, mode='eval')
+            self.eval_loader = DataLoader(self.dataset, batch_size=4, shuffle=True)
 
-        self.eval_dataset = CodeDataset(w2v_cp, device, mode='eval')
-        self.eval_loader = DataLoader(self.dataset, batch_size=4, shuffle=True)
-
-        # getting dim
-        example_batch, _ = next(iter(self.loader))
-        dim = example_batch.shape[2]
+            # getting dim
+            example_batch, _ = next(iter(self.loader))
+            dim = example_batch.shape[2]
+        dim = 50
 
         # model
         self.lstm = nn.LSTM(

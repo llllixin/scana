@@ -82,6 +82,11 @@ def get_embd(code, checkpoint: int):
     embd = sg.in_embed(idx)
     return embd
 
+def get_embd_from_sg(sg: SkipGram, code):
+    idx = torch.tensor(to_ids(code))
+    embd = sg.in_embed(idx)
+    return embd
+
 if __name__ == '__main__':
     print("model/w2v/model.py is not meant to be run as a script")
     exit(1)
