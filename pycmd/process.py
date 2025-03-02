@@ -9,7 +9,7 @@ from .chain import get_chains
 # reentrency
 from .reentrency import getCallValueRelatedByteLocs
 # time stamp dependency
-from .ts_dependency import getTSDependencyByteLocs
+from .ts_dependency import getConditionRelatedSC
 from .ast_util import slice_sol
 from .clean import clean
 
@@ -58,8 +58,14 @@ def assert_solc_version(ver):
         return False
     return False
 
-
-def process(filepath=None):
+def process(filepath=None, slice_kind=None):
+    '''
+    :param filepath: the path of the single .sol file to process, 
+    only used to slice single file
+    :param slice_kind: the kind of slicing to perform, 
+    'ree' for reentrancy slicing, 'ts' for timestamp dependency slicing, 
+    only used to slice single file
+    '''
     # gather files & versions
     print("Gathering files & versions...")
     # tuples of (file, its root, pragma version) for later processing
@@ -91,6 +97,7 @@ def process(filepath=None):
                         print(f"Version not supported for file {toadd}: {ver}")
 
     # files = set()
+    # files.add(("dataset/ts/vul/14953.sol", "dataset/ts/vul", "0.4.16"))
     # files.add(("dataset/reentrancy/reentrancy_dao2.sol", "dataset/reentrancy", "0.4.19"))
     # files.add(("dataset/reentrancy/reentrancy_dao3.sol", "dataset/reentrancy", "0.4.19"))
     # files.add(("dao2.sol/test.sol", "dao2.sol", "0.4.19"))
@@ -139,6 +146,7 @@ def process(filepath=None):
         if not os.path.exists(target_dir):
             os.makedirs(target_dir)
 
+        print(f"Generating ANTLR tree for {file}...")
         gen_antlr(file, target_dir)
 
     print("ANTLR generation complete.")
@@ -244,6 +252,7 @@ def process(filepath=None):
             target_dir = os.path.join("eval")
         else:
             kind = path.split("/")[-2] + "/" + path.split("/")[-1]
+            slice_kind = kind.split("/")[0]
             target_dir = os.path.join("out", kind, filename)
         cur_dir_fs = os.listdir(target_dir)
 
@@ -292,25 +301,36 @@ def process(filepath=None):
             chains.append([single])
         # exit()
 
-        # try:
-        byte_locs = getCallValueRelatedByteLocs(ast_json, chains, dotfiles, target_dir)
-        # byte_locs = getTSDependencyByteLocs(ast_json, chains, dotfiles, target_dir)
-        # exit(0)
-        # print(byte_locs)
-        solpath = os.path.join(path, filename)
-        if filepath:
-            solpath = filepath
-        sliced_lines = slice_sol(solpath, byte_locs)
-        # print(sliced_lines)
-        # for l in sliced_lines:
-        #     print(l)
+        try:
+            if slice_kind == 'ree':
+                byte_locs = getCallValueRelatedByteLocs(ast_json, chains, dotfiles, target_dir)
+            elif slice_kind == 'ts':
+                byte_locs = getConditionRelatedSC(ast_json, chains, dotfiles, target_dir)
+            else:
+                raise ValueError(f"Invalid slice kind: {slice_kind}")
 
-        if len(sliced_lines) > 0:
-            with open(f"{target_dir}/sliced.txt", "w") as f:
-                for line in sliced_lines:
-                    f.write(line.strip() + "\n")
-        else:
-            print("No sliced code, good")
+            # byte_locs = getTSDependencyByteLocs(ast_json, chains, dotfiles, target_dir)
+            # exit(0)
+            # print(byte_locs)
+            solpath = os.path.join(path, filename)
+            if filepath:
+                solpath = filepath
+            sliced_lines = slice_sol(solpath, byte_locs)
+            # print(sliced_lines)
+            # for l in sliced_lines:
+            #     print(l)
+            if len(sliced_lines) > 0:
+                with open(f"{target_dir}/sliced.txt", "w") as f:
+                    for line in sliced_lines:
+                        f.write(line.strip() + "\n")
+            else:
+                print("No sliced code, good")
+        except Exception as e:
+            print(f"Error processing {file}: {e}")
+            with open("out5.txt", "a+") as f:
+                f.write(file + "\n")
+                f.write(str(e) + "\n")
+
         # except Exception as e:
         #     print(f"Error processing {file}: {e}")
         #     with open("out5.txt", "a+") as f:

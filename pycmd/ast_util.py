@@ -126,6 +126,13 @@ def srcToPos(src):
     temp = src.split(":")
     return int(temp[0]), int(temp[0]) + int(temp[1])
 
+def srcToFirstPos(src):
+    '''
+    Some arbitrary code, i don't even want to try to figure out what it does
+    '''
+    temp = src.split(":")
+    return int(temp[0])
+
 def getMaliciousChains(ast_json, chains, dot_files, root_dir, cond):
     '''
     :param ast_json: the json representation of the AST

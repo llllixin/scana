@@ -278,9 +278,7 @@ def getCallValueRelatedByteLocs(ast_json, chains, dot_files, root_dir):
             if len(var_dict) == 0:
                 pass
             else:
-                # print(var_dict)
-                sc = getAddressRelatedSC(ast_json, contractName, funcName, var_dict)
-                sc_list.append(sc)
-                # print(sc)
-    sc = list(set([m for i in sc_list for j in i for m in j]))
-    return sc
+                byteLocs = getAddressRelatedSC(ast_json, contractName, funcName, var_dict)
+                sc_list.append(byteLocs)
+    byteLocs = list(set([m for i in sc_list for j in i for m in j]))
+    return byteLocs
