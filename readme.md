@@ -20,12 +20,12 @@ rm -rf smartbugs-curated
 
 # Code Slicing:
 ```bash
-python cmd/process.py
+python -m pycmd.process
 ```
 
 # Out Structure:
 ```bash
-out/{kind}/{good/bad}/{filename}/{content}
+out/{kind}/{vul/non_vul}/{filename}/{content}
 ```
 Where content could be `ast.json`, `*.dot`, `sliced.txt`, `antlr.txt`
 If `sliced.txt` is not present, no vulnerabilities were found in that code.
