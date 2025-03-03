@@ -115,7 +115,7 @@ class Fusion_Model_BLSTM_ATT(nn.Module):
             total_loss = 0
             for x_batch, y_batch in self.loader:
                 x_batch = x_batch.float()
-                print("x_batch shape: ", x_batch.shape)
+                # print("x_batch shape: ", x_batch.shape)
                 y_batch = y_batch.long()
                 optimizer.zero_grad()
                 logits = self(x_batch)

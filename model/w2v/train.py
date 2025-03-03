@@ -103,6 +103,10 @@ if args.command == 'train':
             neg = torch.randint(0, len(vocab), (neg_size,)).tolist()
             neg_context.append(neg)
 
+        # TODO: hack
+        if len(targets) > 25000:
+            break
+
     print("targets:", targets)
     print("num_classes:", len(vocab))
     targets = torch.tensor(targets, dtype=torch.long).to(device)

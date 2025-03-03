@@ -33,6 +33,7 @@ def parse_args():
     infer_cmd.add_argument("file", type=str, help='.sol file to infer')
     infer_cmd.add_argument('--base', type=int, default=0, help='base checkpoint to start inference from')
     infer_cmd.add_argument('--w2v', type=int, default=0, help='w2v checkpoint to generate embeddings from')
+    infer_cmd.add_argument('--slice', type=str, default='ree', help='slice kind, either ree or ts')
 
     return parser.parse_args()
 
@@ -85,6 +86,7 @@ if __name__ == '__main__':
         base = args.base
         w2v_cp = args.w2v
         fp = args.file
+        slice_kind = args.slice
 
         if not os.path.exists(fp):
             raise FileNotFoundError(f"File {fp} not found")
@@ -97,7 +99,7 @@ if __name__ == '__main__':
         print(f"CPU Available: {cpu_available}")
         device = torch.device('cuda' if cuda_available else ('mps' if mps_available else 'cpu'))
 
-        process.process(filepath=fp)
+        process.process_single(filepath=fp, slice_kind=slice_kind)
         files = os.listdir('eval')
 
         # assert that both files are present
@@ -153,7 +155,8 @@ def warmup(
 def analyze_file(
         model: Fusion_Model_BLSTM_ATT,
         w2v_model: SkipGram,
-        fp: str
+        fp: str,
+        slice_kind: str = 'ree'
     ):
     """
     In here we utilize the model and word2vec model that we loaded using 
@@ -162,7 +165,7 @@ def analyze_file(
     if not os.path.exists(fp):
         raise FileNotFoundError(f"File {fp} not found")
 
-    process.process(filepath=fp)
+    process.process_single(filepath=fp, slice_kind=slice_kind)
     files = os.listdir('eval')
 
     # assert that both files are present
