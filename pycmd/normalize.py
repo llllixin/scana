@@ -102,12 +102,13 @@ def clean_fragment(fragment):
     # return the list of cleaned lines
     return cleaned_fragment
 
-def clean(code):
+def normalize(code):
     content = code.split('\n')
     codelines = []
     for line in content:
         line = line.strip()
-        codelines.append(line + '\n')
+        # codelines.append(line + '\n')
+        codelines.append(line + ' ')
     cleaned = clean_fragment(codelines)
     return "".join(cleaned)
 
@@ -119,5 +120,5 @@ if __name__ == '__main__':
     f = open(file, 'r')
     code = f.read()
     f.close()
-    cleaned = clean(code)
+    cleaned = normalize(code)
     print(cleaned)

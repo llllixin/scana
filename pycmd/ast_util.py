@@ -56,6 +56,40 @@ def splitTempName(_str):
     result.append(temp)
     return result[0][1:], result[1][:-1]  #
 
+def findDecl(ast_json):
+    """
+    Find definition nodes and return a set of their names, along side with 
+    the mapping.
+    """
+    decls = set()
+    queue = [ast_json]
+    proj = {}
+    while len(queue) > 0:
+        data = queue.pop()
+        if type(data) == dict:
+            for key in data:
+                cont = data[key]
+                if type(cont) != str:
+                    continue
+                if key == "name" and (cont.endswith("Definition") or cont.endswith("Declaration")):
+                    prefix = data[key][:3].upper()
+                    if "attributes" not in data:
+                        continue
+                    if "name" not in data["attributes"]:
+                        continue
+                    name = data["attributes"]["name"]
+                    if name:
+                        decls.add(name)
+                        proj[name] = prefix + "_" + str(len(decls))
+            for key in data:
+                if type(data[key]) != dict and type(data[key]) != list:
+                    continue
+                queue.append(data[key])
+        elif type(data) == list:
+            for item in data:
+                queue.append(item)
+    return list(decls), proj
+
 # Maybe handle nested arrays as well?
 def findASTNode(ast_json, key, val):
     queue = [ast_json]

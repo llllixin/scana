@@ -4,6 +4,8 @@
 import subprocess
 import solcx
 
+from pycmd.normalize import normalize
+
 # internal
 from .chain import get_chains
 # reentrency
@@ -82,8 +84,8 @@ def gen_jobs():
                 else:
                     print(f"Version not supported for file {toadd}: {ver}")
 
-    # files = set()
-    # files.add(("dataset/ts/vul/14953.sol", "dataset/ts/vul", "0.4.16"))
+    files = set()
+    files.add(("dataset/ts/vul/14953.sol", "dataset/ts/vul", "0.4.16"))
     # files.add(("dataset/reentrancy/reentrancy_dao2.sol", "dataset/reentrancy", "0.4.19"))
     # files.add(("dataset/reentrancy/reentrancy_dao3.sol", "dataset/reentrancy", "0.4.19"))
     # files.add(("dao2.sol/test.sol", "dao2.sol", "0.4.19"))
@@ -125,7 +127,7 @@ def gen_antlr_for_job(job):
     antlr_path = os.path.join(target_dir, "antlr.txt")
     if os.path.exists(antlr_path):
         print(f"ANTLR of {file} already exists, skipping...")
-        return
+        return True, None
     if not os.path.exists(target_dir):
         os.makedirs(target_dir)
 
@@ -156,7 +158,7 @@ def gen_ast_for_job(job):
     ast_path = os.path.join(target_dir, "ast.json")
     if os.path.exists(ast_path):
         print(f"Ast of {file} already exists, skipping...")
-        return
+        return True, None
     if not os.path.exists(target_dir):
         os.makedirs(target_dir)
     gen_ast(file, ver, target_dir)
@@ -168,7 +170,7 @@ def gen_dot(file, path, ver, target_dir):
     for f in target_files:
         if f.endswith(".dot"):
             print(f"Dot of {file} already exists, skipping...")
-            return
+            return True, None
     solc = "./.solcx/solc-v" + ver
     cmd = f"slither --solc {solc} {file} --print call-graph"
     res = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -218,7 +220,7 @@ def slice_job(job, slice_kind=None):
     ast_path = os.path.join(target_dir, "ast.json")
     if not os.path.exists(ast_path):
         print(f"AST of {file} does not exist!!! skipping...")
-        return False
+        return False, None
     print("="*30)
     print("processing", file)
     ast_json = json.load(open(ast_path, "r"))
@@ -271,13 +273,19 @@ def slice_job(job, slice_kind=None):
         # print(byte_locs)
         solpath = os.path.join(path, filename)
         sliced_lines = slice_sol(solpath, byte_locs)
+        contents = "".join(sliced_lines)
+        contents = normalize(contents)
         # print(sliced_lines)
         # for l in sliced_lines:
         #     print(l)
-        if len(sliced_lines) > 0:
+        # if len(sliced_lines) > 0:
+        #     with open(f"{target_dir}/sliced.txt", "w") as f:
+        #         for line in sliced_lines:
+        #             f.write(line.strip() + "\n")
+        if len(contents) > 0:
             with open(f"{target_dir}/sliced.txt", "w") as f:
-                for line in sliced_lines:
-                    f.write(line.strip() + "\n")
+                f.write(contents)
+            print("Sliced code written to", f"{target_dir}/sliced.txt")
         else:
             print("No sliced code, good")
         return True, None
@@ -288,22 +296,30 @@ def slice_job(job, slice_kind=None):
 def worker(job):
     name, _, _ = job
     print("Generating ANTLR trees...")
-    res1 = gen_antlr_for_job(job)
+    sta, e1 = gen_antlr_for_job(job)
+    if not sta:
+        return name, "antlr", e1
     print("ANTLR generation complete.")
 
     print("Generating ASTs...")
-    res2 = gen_ast_for_job(job)
+    sta, e2 = gen_ast_for_job(job)
+    if not sta:
+        return name, "ast", e2
     print("AST generation complete.")
 
     print("Generating .dot files...")
-    res3 = gen_dot_for_job(job)
+    sta, e3 = gen_dot_for_job(job)
+    if not sta:
+        return name, "dot", e3
     print("Dot generation complete.")
 
     print("Slicing...")
-    res4 = slice_job(job)
+    sta, e4 = slice_job(job)
+    if not sta:
+        return name, "slice", e4
     print("Slicing complete.")
 
-    return name, res1, res2, res3, res4
+    return name, None, None
 
 def process():
     '''
@@ -323,15 +339,17 @@ def process():
     with ProcessPoolExecutor(max_workers=12) as pool:
         fts = [pool.submit(worker, job) for job in jobs]
         for ft in fts:
-            name, res1, res2, res3, res4 = ft.result()
-            if not res1:
-                antlr_errfiles.add(name)
-            if not res2:
-                ast_errfiles.add(name)
-            if not res3:
-                dot_errfiles.add(name)
-            if not res4:
-                slice_errfiles.add(name)
+            name, typ, err = ft.result()
+            if not err:
+                continue
+            if typ == "antlr":
+                antlr_errfiles.add((name, err))
+            if typ == "ast":
+                ast_errfiles.add((name, err))
+            if typ == "dot":
+                dot_errfiles.add((name, err))
+            if typ == "slice":
+                slice_errfiles.add((name, err))
 
     if len(antlr_errfiles) > 0:
         with open("antlr_err_files.txt", "a+") as f:
