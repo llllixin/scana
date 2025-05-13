@@ -54,6 +54,7 @@
 								scikit-learn
 								antlr4-python3-runtime
 								flask
+                pysocks
                 # If nixpkgs don't have it or you want to use a different version,
                 # you can fetch it from PyPI
                 # For wheels, check out fetchPypi src: 
