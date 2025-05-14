@@ -32,7 +32,7 @@ If `sliced.txt` is not present, no vulnerabilities were found in that code.
 
 # Generating Vocabulary From ./out:
 ```bash
-pythom -m model.w2v.build_vocab
+python -m model.w2v.build_vocab
 ```
 
 # Training Word2Vec:
