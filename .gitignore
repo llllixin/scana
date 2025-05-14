@@ -10,3 +10,6 @@ model/checkpoints/*
 model/w2v/checkpoints/*
 model/w2v/vocab.txt
 eval/
+java/
+.gitignore
+slice_err_files.txt

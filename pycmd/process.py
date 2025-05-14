@@ -213,7 +213,7 @@ def slice_job(job, slice_kind=None):
         target_dir = os.path.join("out", kind, filename)
     else: 
         target_dir = os.path.join("single_source")
-    slice_kind = kind.split("/")[0] if slice_kind is None else slice_kind
+    slice_kind = kind.split("/")[-1] if slice_kind is None else slice_kind
     cur_dir_fs = os.listdir(target_dir)
 
     print(target_dir)
